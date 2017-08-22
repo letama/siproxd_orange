@@ -1,0 +1,97 @@
+Skip to content
+This repository
+Search
+Pull requests
+Issues
+Marketplace
+Explore
+ @letama
+  Sign out
+   Watch 2,177
+     Star 53,798
+       Fork 23,370 github/gitignore
+        Code  Pull requests 163  Projects 0 Insights
+	Branch: master Find file Copy pathgitignore/C.gitignore
+	f76d089  on Oct 31, 2016
+	@chaosdefinition chaosdefinition Update C.gitignore
+	12 contributors @rye @dashed @aarian93p @Leandros @snisarg @mattjeffery @dybekm @eugpermar @starrify @chaosdefinition @arsenm @adericbourg
+	RawBlameHistory
+	53 lines (44 sloc)  430 Bytes
+	# Prerequisites
+	*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Makefile (autoconf)
+Makefile
+.libs/
+autom4te.cache/
+build-aux/compile
+config.log
+config.status
+libtool
+src/.deps/
+src/.dirstamp
+src/config.h
+src/stamp-h1
+										
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+© 2017 GitHub, Inc.
+Terms
+Privacy
+Security
+Status
+Help
+Contact GitHub
+API
+Training
+Shop
+Blog
+About
