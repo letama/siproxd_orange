@@ -14,11 +14,9 @@ plugin_orange_la_SOURCES = src/plugin_orange.c src/plugin_orange.h \
 			   src/salsa20-init_state.c src/salsa20-init_state.h \
 			   src/utils.c src/utils.h
 
-plugin_orange_la_CFLAGS = -g -Wall -Werror -I./siproxd/src
+plugin_orange_la_CFLAGS = -g -Wall -Werror -I../src
 
 plugin_orange_la_LDFLAGS = -module
 
 
 
-distcheck-hook:
-	ln -s $(PWD)/siproxd $(PACKAGE_NAME)-$(PACKAGE_VERSION)/_build/siproxd

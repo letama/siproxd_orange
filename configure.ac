@@ -18,15 +18,6 @@ AC_PREFIX_PROGRAM([siproxd])
 AC_CONFIG_MACRO_DIR([m4])
 
 
-dnl define macro to check for some siproxd source files
-AC_DEFUN([CHECK_SIPROXD_FILE], [AC_CHECK_FILE([siproxd/src/$1], [], [
-	echo 'No $1 header could be found.';
-	echo 'Please make sure there is a symlink named "siproxd" in the root directory,';
-	echo 'which points to a siproxd source code directory. Please read README.md ';
-	echo 'for more information.';
-	echo;
-	echo 'Example: ln -s /path/to/siproxd-0.8.2-dev siproxd';
-	exit 1])])
 
 dnl Check for libraries
 PKG_CHECK_MODULES([libcurl], [libcurl])
@@ -119,8 +110,6 @@ if test "$have_htole16" = yes; then
 fi
 AC_MSG_RESULT($have_htole16)
 
-CHECK_SIPROXD_FILE([siproxd.h])
-CHECK_SIPROXD_FILE([plugins.h])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
