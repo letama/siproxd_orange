@@ -29,6 +29,7 @@
 struct step1_result {
    char* status;
    char* token;
+   char  sha1[20];
 };
 
 struct sip_params {
@@ -43,6 +44,7 @@ struct sip_params {
    char* auth_data;        /* AuthentData */
    char* ua_string;        /* SiPUserAgent (not a typo) */
    char  ha1[33];          /* HA1 for response to challenge, computed later */
+   char* password;
 };
 
 
@@ -55,6 +57,6 @@ void dump_sip_params(struct sip_params* p);
 void step1_result_free(struct step1_result* s1r);
 void sip_params_free(struct sip_params* s2r);
 
-void compute_digest_ha1(struct sip_params* s2r);
+void compute_digest_ha1(struct sip_params* s2r, unsigned char sha1[20]);
 
 #endif

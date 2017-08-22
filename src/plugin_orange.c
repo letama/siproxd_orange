@@ -34,6 +34,10 @@
 #include <libxml/tree.h>
 #include <osipparser2/osip_parser.h>
 
+#include <dlfcn.h>
+#include <hybris/common/binding.h>
+
+
 #include "siproxd.h"
 #include "plugins.h"
 #include "log.h"
@@ -314,15 +318,55 @@ static int plugin_orange_determine_target(sip_ticket_t *ticket)
    return STS_SUCCESS;
 }
 
+/*  Calling orange function in dll */
+HYBRIS_LIBRARY_INITIALIZE(libvoip, "libVOIP_ENGINE_API.so");
+
+typedef struct pj_str
+{
+  /** Buffer pointer, which is by convention NOT null terminated. */
+  char       *ptr;
+
+  /** The length of the string. */
+  size_t  slen;
+} pj_str_t;
 
 
 
+typedef struct pjsip_cred_info_struct
+{
+  pj_str_t    realm; /**< Realm. Use "*" to make a credential that
+		          can be used to authenticate against any
+			  challenges.    */
+  pj_str_t scheme;   /**< Scheme (e.g. "digest").    */
+  pj_str_t username; /**< User name.    */
+  int     unk;
+  int data_type;     /**< Type of data (0 for plaintext passwd). */
+  pj_str_t data;     /**< The data, which can be a plaintext
+		          password or a hashed digest.    */
+} pjsip_cred_info;
 
 
+HYBRIS_IMPLEMENT_VOID_FUNCTION9(libvoip, pjsip_auth_create_digest, pj_str_t *, pj_str_t *, pj_str_t *, pj_str_t *, pj_str_t *, pj_str_t *, pj_str_t *, pjsip_cred_info *, pj_str_t *);
+
+void set_str(pj_str_t *to, const char *string, size_t size)
+{
+	to->ptr = (char *)string;
+	to->slen = size;
+}
+
+void hex2str(unsigned char *dest, const unsigned char *src, int src_length)
+{
+  int i;
+  for(i = 0; i < src_length; i++) {
+    sprintf((char *)(dest+i*2), "%02x", src[i]);
+  }
+  dest[i*2] = 0;
+}
 
 static int plugin_orange_rewrite_authorization(osip_authorization_t *auth, char *method)
 {
    char* scratch;
+   pj_str_t result, pnonce, pnc, pcnonce, pqop, puri, prealm, pmethod;
 
    /* rewrite Authorization uri if registering */
    if (! strcmp(method, "REGISTER")) {
@@ -330,7 +374,7 @@ static int plugin_orange_rewrite_authorization(osip_authorization_t *auth, char 
                3 + strlen("sip::")
                + strlen(params->ua_domain)
                + strlen(params->out_proxy_port)) * sizeof(char));
-      sprintf(scratch, "\"sip:%s:%s\"", params->ua_domain, params->out_proxy_port);
+            sprintf(scratch, "\"sip:%s\"", params->ua_domain);
       osip_authorization_set_uri(auth, scratch);
    }
 
@@ -367,22 +411,45 @@ static int plugin_orange_rewrite_authorization(osip_authorization_t *auth, char 
       DEBUGC(DBCLASS_PLUGIN, "nc       = [%s]", osip_authorization_get_nonce_count(auth));
       DEBUGC(DBCLASS_PLUGIN, "cnonce   = [%s]", cnonce);
       DEBUGC(DBCLASS_PLUGIN, "qop      = [%s]", osip_authorization_get_message_qop(auth));
-
+      DEBUGC(DBCLASS_PLUGIN, "impi     = [%s]", params->impi);
+      DEBUGC(DBCLASS_PLUGIN, "authtype = [%s]", osip_authorization_get_auth_type(auth));
+      DEBUGC(DBCLASS_PLUGIN, "realm    = [%s]", osip_authorization_get_realm(auth));
+      DEBUGC(DBCLASS_PLUGIN, "password = [%s]", params->password);
       request_uri = strdup(osip_authorization_get_uri(auth) + 1);
       request_uri[strlen(request_uri) - 1] = '\0';
 
-      compute_digest_response((unsigned char*) params->ha1,
-            nonce,
-            osip_authorization_get_nonce_count(auth),
-            cnonce,
-            osip_authorization_get_message_qop(auth),
-            method,
-            request_uri,
-            (unsigned char*) "",
-            (unsigned char*) response + 1);
+
+
+      pjsip_cred_info cred;
+      cred.realm.ptr = osip_authorization_get_realm(auth);
+      cred.realm.slen = strlen(cred.realm.ptr);
+      cred.scheme.ptr =  osip_authorization_get_auth_type(auth);
+      cred.scheme.slen = strlen(cred.scheme.ptr);
+      cred.username.ptr = params->impi;
+      cred.username.slen = strlen(params->impi);
+      cred.data.ptr = params->password;
+      cred.data.slen = strlen(cred.data.ptr);
+      cred.unk = 1;
+      cred.data_type = 2; /* PJSIP_CRED_DATA_DIGEST */
+      result.ptr = (char *)malloc(33);
+      result.slen = 33;
+
+      set_str(&pnonce, nonce,strlen(nonce));
+      set_str(&pnc, osip_authorization_get_nonce_count(auth), strlen(osip_authorization_get_nonce_count(auth)));
+      set_str(&pcnonce, cnonce,strlen(cnonce));
+      set_str(&pqop,  osip_authorization_get_message_qop(auth), strlen(osip_authorization_get_message_qop(auth)));
+      set_str(&puri, request_uri, strlen(request_uri));
+      set_str(&prealm, cred.realm.ptr, strlen(cred.realm.ptr));
+      set_str(&pmethod, method, strlen(method));
+
+
+      pjsip_auth_create_digest(&result, &pnonce, &pnc, &pcnonce, &pqop, &puri, &prealm, &cred, &pmethod);
+      memcpy(response+1, result.ptr, 32);
+
       response[0] = '"';
       response[33] = '"';
       response[34] = '\0';
+
       osip_authorization_set_response(auth, strdup(response));
 
       DEBUGC(DBCLASS_PLUGIN, "req_uri  = [%s]", request_uri);

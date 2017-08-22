@@ -27,12 +27,14 @@
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+#include <openssl/aes.h>
 
 #include "auth.h"
 #include "base64.h"
 #include "md5.h"
 #include "salsa20-orange.h"
 #include "utils.h"
+#include "sha1.h"
 
 
 
@@ -115,8 +117,51 @@ void dump_sip_params(struct sip_params* p)
    printf("auth_data      = %s\n", p->auth_data);
    printf("ua_string      = %s\n", p->ua_string);
    printf("ha1            = %s\n", p->ha1);
+   printf("password       = %s\n", p->password);
 }
 
+
+const char *xor = "55a6bb971d77d92c9854bed685e95cf6655b0981";
+
+
+unsigned char *str2hex(const char *s)
+{
+  int i;
+  unsigned char *res = (unsigned char *)malloc(strlen(s)/2 * sizeof(unsigned char)+1);
+  for(i=0; i < strlen(s) ; i+=2) {
+    sscanf(s+i, "%2x", (unsigned int*)(res +i/2));
+  }
+  return res;
+}
+
+void create_token(char *cookie, char res[10], unsigned char sha[20])
+{
+  int i;
+
+  printf("cookie size:%u\n", strlen(cookie));
+  unsigned char* bincook = str2hex(cookie);
+  unsigned char* binxor = str2hex(xor);
+  unsigned char* binxored = malloc(strlen(cookie)/2 * sizeof(unsigned char *));
+
+  printf("doing xor\n");
+  for(i = 0; i < strlen(cookie)/2 ; i++) {
+    binxored[i] = bincook[i] ^ binxor[i % (strlen(xor)/2)];
+  }
+  printf("result:\n");
+  for(i = 0 ; i < strlen(cookie)/2 ; i++) {
+    printf("%02X ", binxored[i]);
+    if(i % 16 == 15) printf("\n");
+  }
+  printf("\n");
+
+  SHA1((char *)sha, (const char *)binxored, strlen(cookie)/2);
+  printf("sha1:");
+  for(i=0 ; i < 20; i++){
+    printf("%02X ", (unsigned)sha[i]);
+  }
+  sprintf(res, "%02x%02x%02x%02x",  (unsigned)sha[0xf], (unsigned)sha[3], (unsigned)sha[0xa], (unsigned)sha[9]);
+  printf("\ntoken:%02x%02x%02x%02x\n", (unsigned)sha[0xf], (unsigned)sha[3], (unsigned)sha[0xa], (unsigned)sha[9]);
+}
 
 
 
@@ -266,6 +311,8 @@ int auth_step2_parse_result(const char* source, struct sip_params *result)
    xmlNode* cur_node;
    int level = 0;
 
+   printf("resultat auth2:%s\n", source);
+
    doc = xmlReadMemory(source, strlen(source), "", NULL, XML_PARSE_NONET);
    if (doc == NULL) {
       fprintf(stderr, "could not parse server response\n");
@@ -395,18 +442,32 @@ int auth_step2(CURL* curl, struct step1_result* s1r,
 {
    char* postdata;
    char curl_errbuf[CURL_ERROR_SIZE] = "";
+   char new_token[10];
+   unsigned char sha1[20];
    size_t content_length;
 
-   int ret, result = 0;
+   int i, ret, result = 0;
 
    struct safe_string response;
    struct sip_params* s2r;
 
-   const char fake_os_name[] = "Android";
-   const char fake_os_ver[]  = "5.0";
-   const char fake_ua_ver[]  = "2.6.0";
-   const char fake_lang[]    = "fr";
-   const char fake_mode[]    = "Nominal";
+   const char fake_os_name[]      = "Android";
+   const char fake_os_ver[]       = "6.0";
+   const char fake_ua_ver[]       = "3.2.0";
+   const char fake_lang[]         = "Fr";
+   const char fake_mode[]         = "Periodic";
+   const char fake_device_name[]  = "LG-H815";
+   const char fake_device_brand[] = "LGE";
+
+   fprintf(stderr, "pl: auth_step2 starting\n");
+   create_token(s1r->token, new_token, sha1);
+
+   printf("in auth_step2, sha1: ");
+
+   for(i = 0 ; i < 20 ; i++) {
+     printf("%02X ", sha1[i]);
+   }
+   printf("\n");
 
    if (s1r == NULL)
       return 1;
@@ -419,13 +480,19 @@ int auth_step2(CURL* curl, struct step1_result* s1r,
    response.size = 1000;
    memset(response.data, 0, 1000);
 
-   content_length = strlen("cookie=&version=&OSName=&OSVersion=&language=&mode=") 
+   content_length = strlen("cookie=&version=&OSName=&OSVersion=&language=&mode=&DeviceName=&DeviceBrand=&token=")
       + strlen(fake_os_name)
       + strlen(fake_os_ver)
       + strlen(fake_ua_ver)
       + strlen(fake_lang)
       + strlen(fake_mode)
+      + strlen(fake_device_name)
+      + strlen(fake_device_brand)
+      + strlen(new_token)
       + strlen(s1r->token);
+
+
+   fprintf(stderr, "pl: auth_step2 cookie=%s\n",s1r->token);
 
    postdata = malloc((content_length + 1) * sizeof(char));
    if (postdata == NULL) {
@@ -445,10 +512,18 @@ int auth_step2(CURL* curl, struct step1_result* s1r,
    strcat(postdata, fake_lang);
    strcat(postdata, "&mode=");
    strcat(postdata, fake_mode);
+   strcat(postdata, "&DeviceName=");
+   strcat(postdata, fake_device_name);
+   strcat(postdata, "&DeviceBrand=");
+   strcat(postdata, fake_device_brand);
+   strcat(postdata, "&Token=");
+   strcat(postdata, new_token);
 
+
+   printf("------\npost_data=%s\n-----\n", postdata);
    
    curl_easy_setopt(curl, CURLOPT_URL,
-         "https://sfcpesoft.orange.fr:443/fcpesoft/v2/getTerminalParameters");
+	 "https://sfcpesoft.orange.fr:443/fcpesoft/v3-3bv4oa4f79/getTerminalParameters");
    curl_easy_setopt(curl, CURLOPT_POST, 1);
    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata);
    curl_easy_setopt(curl, CURLOPT_USERAGENT, "");
@@ -471,12 +546,11 @@ int auth_step2(CURL* curl, struct step1_result* s1r,
       result = 1;
       goto err_2;
    }
-
    if (auth_step2_parse_result(response.data, s2r) != 0) {
       result = 1;
       goto err_2;
    }
-   compute_digest_ha1(s2r);
+   compute_digest_ha1(s2r, sha1);
 
 err_2:
    free(postdata);
@@ -489,34 +563,46 @@ err_1:
 
 
 
-void compute_digest_ha1(struct sip_params* s2r) 
+void compute_digest_ha1(struct sip_params* s2r, unsigned char sha1[20])
 {
-   char* auth_data_dec;
-   uint8_t* token;
-   uint16_t* scratch;
-   size_t scratch_size;
+   AES_KEY ctx;
    int i;
+   unsigned char *binpasswd;
+   unsigned char aesout[128];
 
-   auth_data_dec = malloc(strlen(s2r->auth_data) * sizeof(char));
+   printf("in compute_digest_ha1, passwd:%s\n", (char *)s2r->auth_data);
+   printf("sha1:");
+   for(i = 0; i < 20 ; i++){
+     printf("%02X", sha1[i]);
+   }
+   printf("\n");
 
-   /* decode AuthentData */
-   base64_decode(s2r->auth_data, auth_data_dec, strlen(s2r->auth_data));
+   binpasswd = str2hex(s2r->auth_data);
 
-   /* compute scratch size */
-   scratch_size = (auth_data_dec[0] * 16);
+   AES_set_decrypt_key(sha1, 128, &ctx);
+   AES_decrypt(binpasswd, aesout, &ctx);
+   for(i = 0 ; i < 16; i++) {
+     printf("%02X ", aesout[i]);
+   }
+   AES_decrypt(binpasswd+16, aesout+16, &ctx);
 
-   /* compute hash on interesting bits of AuthentData */
-   token   = malloc(32 * sizeof(uint8_t));
-   scratch = malloc(scratch_size * sizeof(uint8_t));
-   memcpy(token,   auth_data_dec + scratch_size + 1, 32);
-   memcpy(scratch, auth_data_dec + 1, scratch_size);
-   free(auth_data_dec);
+   for(i = 0 ; i < 32 ; i++) {
+     printf("%02X ", aesout[i]);
+   }
+   printf("\n");
+   memcpy(s2r->ha1, aesout, 32);
+   free(binpasswd);
+
+   // final password = auth_data+first 16 bytes of sha1
+   int szauth = strlen(s2r->auth_data);
+   s2r->password = malloc(szauth + 33);
+
+   strcpy(s2r->password, s2r->auth_data);
+   for(i = 0; i < 16; i++) {
+     sprintf(s2r->password + szauth + i*2, "%02X", sha1[i]);
+   }
    
-   salsa20_enc(1, scratch, token);
-
-   /* write the result into s2r->ha1 */
-   for (i = 0; i < 16; i++)
-      sprintf(s2r->ha1 + 2*i, "%02hhx", (unsigned char)(token[i]));
-
-   free(token);
+   return;
 }
+
+

@@ -139,7 +139,7 @@ am_plugin_orange_la_OBJECTS = src/plugin_orange_la-plugin_orange.lo \
 	src/plugin_orange_la-md5.lo \
 	src/plugin_orange_la-salsa20-orange.lo \
 	src/plugin_orange_la-salsa20-init_state.lo \
-	src/plugin_orange_la-utils.lo
+	src/plugin_orange_la-utils.lo src/plugin_orange_la-sha1.lo
 plugin_orange_la_OBJECTS = $(am_plugin_orange_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -376,9 +376,9 @@ plugin_orange_la_SOURCES = src/plugin_orange.c src/plugin_orange.h \
 			   src/md5.c src/md5.h \
 			   src/salsa20-orange.c src/salsa20-orange.h \
 			   src/salsa20-init_state.c src/salsa20-init_state.h \
-			   src/utils.c src/utils.h
+			   src/utils.c src/utils.h src/sha1.c src/sha1.h
 
-plugin_orange_la_CFLAGS = -g -Wall -Werror -I../src
+plugin_orange_la_CFLAGS = -g -Wall -Werror -I../src -lhybris-common
 plugin_orange_la_LDFLAGS = -module
 all: all-am
 
@@ -487,6 +487,8 @@ src/plugin_orange_la-salsa20-init_state.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/plugin_orange_la-utils.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/plugin_orange_la-sha1.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 
 plugin_orange.la: $(plugin_orange_la_OBJECTS) $(plugin_orange_la_DEPENDENCIES) $(EXTRA_plugin_orange_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(plugin_orange_la_LINK) -rpath $(pkglibdir) $(plugin_orange_la_OBJECTS) $(plugin_orange_la_LIBADD) $(LIBS)
@@ -505,6 +507,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/plugin_orange_la-plugin_orange.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/plugin_orange_la-salsa20-init_state.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/plugin_orange_la-salsa20-orange.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/plugin_orange_la-sha1.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/plugin_orange_la-utils.Plo@am__quote@
 
 .c.o:
@@ -579,6 +582,13 @@ src/plugin_orange_la-utils.lo: src/utils.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/utils.c' object='src/plugin_orange_la-utils.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(plugin_orange_la_CFLAGS) $(CFLAGS) -c -o src/plugin_orange_la-utils.lo `test -f 'src/utils.c' || echo '$(srcdir)/'`src/utils.c
+
+src/plugin_orange_la-sha1.lo: src/sha1.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(plugin_orange_la_CFLAGS) $(CFLAGS) -MT src/plugin_orange_la-sha1.lo -MD -MP -MF src/$(DEPDIR)/plugin_orange_la-sha1.Tpo -c -o src/plugin_orange_la-sha1.lo `test -f 'src/sha1.c' || echo '$(srcdir)/'`src/sha1.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/plugin_orange_la-sha1.Tpo src/$(DEPDIR)/plugin_orange_la-sha1.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/sha1.c' object='src/plugin_orange_la-sha1.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(plugin_orange_la_CFLAGS) $(CFLAGS) -c -o src/plugin_orange_la-sha1.lo `test -f 'src/sha1.c' || echo '$(srcdir)/'`src/sha1.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
