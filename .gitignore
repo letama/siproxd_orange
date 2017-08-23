@@ -96,3 +96,5 @@ Shop
 Blog
 About
 !extras/system/lib/*
+!extras/test_hybris/Makefile
+extras/test_hybris/test_hybris
